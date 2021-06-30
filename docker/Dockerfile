@@ -1,4 +1,4 @@
-FROM gradle:6-jdk11-openj9 AS builder
+FROM gradle:6-jdk11 AS builder
 
 LABEL maintainer="sebastian.raubach@hutton.ac.uk"
 
@@ -8,7 +8,8 @@ ARG BRANCH=main
 ADD https://api.github.com/repos/cropgeeks/app-logger/git/refs/heads/main version.json
 # Clone the repository
 RUN echo "Pulling GitHub branch: $BRANCH"
-RUN apk add --no-cache git && \
+RUN apt-get update && \
+    apt-get install git && \
     git clone -b "$BRANCH" --single-branch --depth 1 https://github.com/cropgeeks/app-logger.git /opt/app-logger
 
 # Download Gradle and build the project
