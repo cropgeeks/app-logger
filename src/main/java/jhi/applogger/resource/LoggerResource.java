@@ -45,7 +45,7 @@ public class LoggerResource
 	}
 
 	@POST
-	@Consumes(MediaType.TEXT_PLAIN)
+	@Consumes("*/*")
 	@Produces(MediaType.APPLICATION_JSON)
 	public void postLogger(@QueryParam("application") String application)
 		throws IOException
@@ -81,49 +81,7 @@ public class LoggerResource
 					}
 				}
 
-				// Parse the date timestamp
-				SimpleDateFormat sdf = new SimpleDateFormat("EEE MMM dd kk:mm:ss zzz yyyy");
-
-				// For each line, import it individually
-				Files.readAllLines(file.toPath())
-					 .forEach(l -> {
-						 // Split into entries
-						 String[] split = l.split("\t", -1);
-
-						 // There should be 8
-						 if (split.length != 8)
-							 return;
-
-						 Integer rating = null;
-						 Timestamp date = null;
-						 try
-						 {
-							 // Parse the rating
-							 rating = Integer.parseInt(split[5]);
-						 }
-						 catch (Exception e)
-						 {
-						 }
-						 try
-						 {
-							 // Parse the date
-							 date = new Timestamp(sdf.parse(split[0]).getTime());
-						 }
-						 catch (Exception e)
-						 {
-						 }
-						 try
-						 {
-							 // Insert the row
-							 addEntry(context, application, split[2], split[1], split[7], split[3], split[4], split[6], rating, date);
-						 }
-						 catch (IOException e)
-						 {
-						 }
-					 });
-
-				// Delete the file
-				file.delete();
+				addEntries(context, app, file);
 			}
 			catch (Exception e)
 			{
@@ -141,13 +99,13 @@ public class LoggerResource
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	public void getLogger(@QueryParam("application") String application,
-						   @QueryParam("id") String userId,
-						   @QueryParam("ip") String ip,
-						   @QueryParam("version") String version,
-						   @QueryParam("locale") String locale,
-						   @QueryParam("os") String os,
-						   @QueryParam("user") String userName,
-						   @QueryParam("rating") Integer rating)
+						  @QueryParam("id") String userId,
+						  @QueryParam("ip") String ip,
+						  @QueryParam("version") String version,
+						  @QueryParam("locale") String locale,
+						  @QueryParam("os") String os,
+						  @QueryParam("user") String userName,
+						  @QueryParam("rating") Integer rating)
 		throws IOException
 	{
 		try (Connection conn = Database.getConnection())
@@ -179,7 +137,8 @@ public class LoggerResource
 		{
 			DSLContext context = Database.getContext(conn);
 
-			// Get the information from the database
+			// Get the information from the database and return the list.
+			// They'll automatically be converted into XML
 			return context.selectDistinct(
 				IPS.LATITUDE,
 				IPS.LONGITUDE,
@@ -206,6 +165,156 @@ public class LoggerResource
 		}
 
 		return null;
+	}
+
+	private void addEntries(DSLContext context, ApplicationsRecord app, File file)
+		throws IOException
+	{
+		// Create some mappings to reduce number of database queries
+		Map<String, UsersRecord> users = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+		context.selectFrom(USERS).forEach(u -> users.put(u.getApplicationId() + "|" + u.getUserid(), u));
+		Map<String, IpsRecord> ips = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+		context.selectFrom(IPS).forEach(i -> ips.put(i.getIpAddress(), i));
+		Map<String, UsersIpsRecord> userIps = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+		context.selectFrom(USERS_IPS).forEach(u -> userIps.put(u.getUsersId() + "|" + u.getApplicationsId() + "|" + u.getIpsId(), u));
+
+		// Parse the date timestamp
+		SimpleDateFormat sdf = new SimpleDateFormat("EEE MMM dd kk:mm:ss zzz yyyy");
+
+		// For each line, import it individually
+		Files.readAllLines(file.toPath())
+			 .forEach(l -> {
+				 // Split into entries
+				 String[] split = l.split("\t", -1);
+
+				 // There should be 8
+				 if (split.length != 8)
+					 return;
+
+				 Integer rating = null;
+				 Timestamp date = null;
+				 try
+				 {
+					 // Parse the rating
+					 rating = Integer.parseInt(split[5]);
+				 }
+				 catch (Exception e)
+				 {
+				 }
+				 try
+				 {
+					 // Parse the date
+					 date = new Timestamp(sdf.parse(split[0]).getTime());
+				 }
+				 catch (Exception e)
+				 {
+				 }
+
+				 // Skip missing user ids
+				 String userId = split[2];
+				 String ip = split[1];
+				 String userName = split[7];
+				 String version = split[3];
+				 String locale = split[4];
+				 String os = split[6];
+
+				 // Insert the row
+				 // Ignore X.XX.XX.XX and X.XX.XX versions
+				 if (Objects.equals(version, "X.XX.XX.XX") || Objects.equals(version, "X.XX.XX"))
+					 return;
+
+				 // Get the IP from the request if none is provided
+				 if (StringUtils.isEmpty(ip))
+					 ip = getIp();
+
+				 // Check if app name and user id are set
+				 if (StringUtils.isEmpty(userId))
+					 return;
+
+				 // Get the user record
+				 UsersRecord user = users.get(app.getId() + "|" + userId);
+
+				 if (user != null)
+				 {
+
+					 // Update the user record
+					 user.setRunCount(user.getRunCount().add(1));
+					 if (!StringUtils.isEmpty(version))
+						 user.setVersion(version);
+					 if (!StringUtils.isEmpty(locale))
+						 user.setLocale(locale);
+					 if (!StringUtils.isEmpty(os))
+						 user.setOs(os);
+
+					 if (rating != null)
+					 {
+						 UInteger uRating = UInteger.valueOf(rating);
+						 // If one exists already, take the maximum
+						 if (user.getRating() != null)
+						 {
+							 int comparison = user.getRating().compareTo(UInteger.valueOf(rating));
+
+							 if (comparison < 0)
+								 user.setRating(uRating);
+						 }
+						 else
+						 {
+							 user.setRating(uRating);
+						 }
+
+					 }
+					 user.store();
+				 }
+				 else
+				 {
+					 // Create a new user record
+					 user = context.newRecord(USERS);
+					 user.setApplicationId(app.getId());
+					 user.setUserid(userId);
+					 user.setUserName(userName);
+					 user.setVersion(version);
+					 user.setLocale(locale);
+					 user.setDate(date);
+					 user.setOs(os);
+					 user.setRunCount(UInteger.valueOf(1));
+					 if (rating != null)
+						 user.setRating(UInteger.valueOf(rating));
+					 user.store();
+
+					 users.put(app.getId() + "|" + userId, user);
+				 }
+
+				 // Get the ip record
+				 IpsRecord ipRecord = ips.get(ip);
+
+				 if (ipRecord == null)
+				 {
+					 // Create a new ip record
+					 ipRecord = context.newRecord(IPS);
+					 ipRecord.setIpAddress(ip);
+					 ipRecord.store();
+
+					 ips.put(ip, ipRecord);
+				 }
+
+				 // Look up the unique mapping between user, application and ip
+				 UsersIpsRecord userIp = userIps.get(user.getId() + "|" + app.getId() + "|" + ipRecord.getId());
+
+				 if (userIp == null)
+				 {
+					 // Create it if it doesn't exist
+					 userIp = context.newRecord(USERS_IPS);
+					 userIp.setUsersId(user.getId());
+					 userIp.setIpsId(ipRecord.getId());
+					 userIp.setApplicationsId(app.getId());
+					 userIp.store();
+
+					 userIps.put(user.getId() + "|" + app.getId() + "|" + ipRecord.getId(), userIp);
+				 }
+			 });
+
+		// Delete the file
+		file.delete();
 	}
 
 	private void addEntry(DSLContext context, String application, String userId, String ip, String userName, String version, String locale, String os, Integer rating, Timestamp date)

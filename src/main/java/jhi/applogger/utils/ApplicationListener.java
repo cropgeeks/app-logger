@@ -18,6 +18,14 @@ public class ApplicationListener implements ServletContextListener
 	@Override
 	public void contextInitialized(ServletContextEvent sce)
 	{
+		// Initialize the property watcher
+		PropertyWatcher.initialize();
+
+		// Run the IP lookup job every day
+		ipLookupJob = new IpLookupJob();
+		backgroundScheduler = Executors.newSingleThreadScheduledExecutor();
+		backgroundScheduler.scheduleAtFixedRate(ipLookupJob, 0, 1, TimeUnit.DAYS);
+
 		try
 		{
 			// Configure the CORS filter
@@ -31,14 +39,6 @@ public class ApplicationListener implements ServletContextListener
 		{
 			e.printStackTrace();
 		}
-
-		// Initialize the property watcher
-		PropertyWatcher.initialize();
-
-		// Run the IP lookup job every day
-		ipLookupJob = new IpLookupJob();
-		backgroundScheduler = Executors.newSingleThreadScheduledExecutor();
-		backgroundScheduler.scheduleAtFixedRate(ipLookupJob, 0, 1, TimeUnit.DAYS);
 	}
 
 	@Override
@@ -46,7 +46,8 @@ public class ApplicationListener implements ServletContextListener
 	{
 		// Remember to stop watching and close the HTTP client in the IP lookup
 		PropertyWatcher.stopFileWatcher();
-		ipLookupJob.close();
+		if (ipLookupJob != null)
+			ipLookupJob.close();
 
 		try
 		{
