@@ -5,7 +5,7 @@ LABEL maintainer="sebastian.raubach@hutton.ac.uk"
 ARG BRANCH=main
 
 # Force docker to not cache the next line
-ADD https://api.github.com/repos/cropgeeks/app-logger/git/refs/heads/master version.json
+ADD https://api.github.com/repos/cropgeeks/app-logger/git/refs/heads/main version.json
 # Clone the repository
 RUN echo "Pulling GitHub branch: $BRANCH"
 RUN apk add --no-cache git && \
