@@ -62,4 +62,12 @@ public class StringUtils
 
 		return null;
 	}
+
+	public static String toNonNull(Object text)
+	{
+		if (text == null)
+			return "";
+		else
+			return text.toString();
+	}
 }

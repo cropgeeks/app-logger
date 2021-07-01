@@ -81,7 +81,10 @@ public class LoggerResource
 					}
 				}
 
+				// Import the data
 				addEntries(context, app, file);
+				// Delete the file
+				file.delete();
 			}
 			catch (Exception e)
 			{
@@ -210,7 +213,6 @@ public class LoggerResource
 				 {
 				 }
 
-				 // Skip missing user ids
 				 String userId = split[2];
 				 String ip = split[1];
 				 String userName = split[7];
@@ -218,7 +220,6 @@ public class LoggerResource
 				 String locale = split[4];
 				 String os = split[6];
 
-				 // Insert the row
 				 // Ignore X.XX.XX.XX and X.XX.XX versions
 				 if (Objects.equals(version, "X.XX.XX.XX") || Objects.equals(version, "X.XX.XX"))
 					 return;
@@ -227,7 +228,7 @@ public class LoggerResource
 				 if (StringUtils.isEmpty(ip))
 					 ip = getIp();
 
-				 // Check if app name and user id are set
+				 // Skip missing user ids
 				 if (StringUtils.isEmpty(userId))
 					 return;
 
@@ -312,9 +313,6 @@ public class LoggerResource
 					 userIps.put(user.getId() + "|" + app.getId() + "|" + ipRecord.getId(), userIp);
 				 }
 			 });
-
-		// Delete the file
-		file.delete();
 	}
 
 	private void addEntry(DSLContext context, String application, String userId, String ip, String userName, String version, String locale, String os, Integer rating, Timestamp date)
@@ -337,6 +335,28 @@ public class LoggerResource
 		{
 			response.sendError(Response.Status.BAD_REQUEST.getStatusCode());
 			return;
+		}
+
+		// Append this information to the application specific log file
+		File logFile = new File(PropertyWatcher.get("data.directory.external"), application + ".log");
+		// Synchronize access to the file to make sure two runs don't concurrently write to it.
+		synchronized (logFile.getCanonicalPath().intern())
+		{
+			try (BufferedWriter bw = new BufferedWriter(new FileWriter(logFile, true)))
+			{
+				// Format the date timestamp
+				SimpleDateFormat sdf = new SimpleDateFormat("EEE MMM dd kk:mm:ss zzz yyyy");
+
+				bw.write(sdf.format(date) + "\t"
+					+ StringUtils.toNonNull(ip) + "\t"
+					+ StringUtils.toNonNull(userId) + "\t"
+					+ StringUtils.toNonNull(version) + "\t"
+					+ StringUtils.toNonNull(locale) + "\t"
+					+ StringUtils.toNonNull(rating) + "\t"
+					+ StringUtils.toNonNull(os) + "\t"
+					+ StringUtils.toNonNull(userName));
+				bw.newLine();
+			}
 		}
 
 		// Get the user record
