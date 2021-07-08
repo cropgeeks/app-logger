@@ -12,6 +12,7 @@ import org.jooq.types.UInteger;
 import javax.servlet.http.*;
 import javax.ws.rs.*;
 import javax.ws.rs.core.*;
+import javax.xml.bind.*;
 import java.io.*;
 import java.nio.file.Files;
 import java.sql.*;
@@ -33,6 +34,24 @@ public class LoggerResource
 
 	@Context
 	private HttpServletResponse response;
+
+	public static void main(String[] args)
+		throws JAXBException
+	{
+		// Initialise the database
+		Database.init(args[0], args[1], args[2], args[3], args[4]);
+		// Get the application name
+		String application = args[5];
+		// Get the target file
+		File target = new File(args[6]);
+
+		// Get the markers, then serialize them into a file.
+		Markers markers = getMarkers(application);
+		JAXBContext jaxbContext = JAXBContext.newInstance(Markers.class);
+		Marshaller marshaller = jaxbContext.createMarshaller();
+		marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
+		marshaller.marshal(markers, target);
+	}
 
 	private String getIp()
 	{
@@ -127,7 +146,7 @@ public class LoggerResource
 	@Path("/xml")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_XML)
-	public List<Marker> getMarkersXml(@QueryParam("application") String application)
+	public Markers getMarkersXml(@QueryParam("application") String application)
 		throws IOException
 	{
 		if (StringUtils.isEmpty(application))
@@ -136,13 +155,18 @@ public class LoggerResource
 			return null;
 		}
 
+		return getMarkers(application);
+	}
+
+	private static Markers getMarkers(String application)
+	{
 		try (Connection conn = Database.getConnection())
 		{
 			DSLContext context = Database.getContext(conn);
 
 			// Get the information from the database and return the list.
 			// They'll automatically be converted into XML
-			return context.selectDistinct(
+			List<Marker> markers = context.selectDistinct(
 				IPS.LATITUDE,
 				IPS.LONGITUDE,
 				IPS.CITY,
@@ -160,6 +184,10 @@ public class LoggerResource
 							  .setTitle(StringUtils.join(", ", "n/a", i.get(IPS.CITY), i.get(IPS.COUNTRY)))
 						  )
 						  .collect(Collectors.toList());
+
+			Markers result = new Markers();
+			result.setMarkers(markers);
+			return result;
 		}
 		catch (SQLException e)
 		{
