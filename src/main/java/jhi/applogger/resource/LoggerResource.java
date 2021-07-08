@@ -402,6 +402,8 @@ public class LoggerResource
 				user.setLocale(locale);
 			if (!StringUtils.isEmpty(os))
 				user.setOs(os);
+			if (date != null)
+				user.setDate(date);
 
 			if (rating != null)
 			{
