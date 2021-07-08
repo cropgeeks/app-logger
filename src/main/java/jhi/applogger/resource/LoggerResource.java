@@ -430,11 +430,15 @@ public class LoggerResource
 			user = context.newRecord(USERS);
 			user.setApplicationId(app.getId());
 			user.setUserid(userId);
-			user.setUserName(userName);
-			user.setVersion(version);
-			user.setLocale(locale);
+			if (!StringUtils.isEmpty(userName))
+				user.setUserName(userName);
+			if (!StringUtils.isEmpty(version))
+				user.setVersion(version);
+			if (!StringUtils.isEmpty(locale))
+				user.setLocale(locale);
 			user.setDate(date);
-			user.setOs(os);
+			if (!StringUtils.isEmpty(os))
+				user.setOs(os);
 			user.setRunCount(UInteger.valueOf(1));
 			if (rating != null)
 				user.setRating(UInteger.valueOf(rating));
