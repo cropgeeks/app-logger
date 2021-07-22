@@ -2,9 +2,10 @@ package jhi.applogger.utils.ip;
 
 import com.google.gson.*;
 import jhi.applogger.database.Database;
+import jhi.applogger.database.codegen.tables.records.IpsRecord;
 import jhi.applogger.utils.StringUtils;
 import okhttp3.OkHttpClient;
-import org.jooq.DSLContext;
+import org.jooq.*;
 import retrofit2.*;
 import retrofit2.converter.gson.GsonConverterFactory;
 
@@ -82,7 +83,12 @@ public class IpLookupJob implements Runnable
 			Call<IpLookupResponse> request = service.getIpDetails(ip, ipLookupId);
 			Response<IpLookupResponse> response = request.execute();
 
-			if (response.isSuccessful())
+			if (response.code() == 104)
+			{
+				// Limit reached
+				throw new RuntimeException();
+			}
+			else if (response.isSuccessful())
 			{
 				return response.body();
 			}
@@ -118,23 +124,35 @@ public class IpLookupJob implements Runnable
 		{
 			DSLContext context = Database.getContext(conn);
 
-			context.selectFrom(IPS)
-				   .where(IPS.IP_ADDRESS.isNotNull())
-				   .and(IPS.COUNTRY.isNull())
-				   .forEach(i -> {
-					   IpLookupResponse response = getIpDetails(i.getIpAddress());
+			Cursor<IpsRecord> result = context.selectFrom(IPS)
+											  .where(IPS.IP_ADDRESS.isNotNull())
+											  .and(IPS.COUNTRY.isNull())
+											  .fetchLazy();
 
-					   if (response != null)
-					   {
-						   i.setCountry(response.getCountry_name());
-						   i.setCountryCode(response.getCountry_code());
-						   i.setCity(response.getCity());
-						   i.setState(response.getRegion_name());
-						   i.setLatitude(response.getLatitude() != null ? Double.toString(response.getLatitude()) : null);
-						   i.setLongitude(response.getLongitude() != null ? Double.toString(response.getLongitude()) : null);
-						   i.store();
-					   }
-				   });
+			boolean goOn = true;
+			while (goOn && result.hasNext())
+			{
+				IpsRecord r = result.fetchNext();
+				try
+				{
+					IpLookupResponse response = getIpDetails(r.getIpAddress());
+
+					if (response != null)
+					{
+						r.setCountry(response.getCountry_name());
+						r.setCountryCode(response.getCountry_code());
+						r.setCity(response.getCity());
+						r.setState(response.getRegion_name());
+						r.setLatitude(response.getLatitude() != null ? Double.toString(response.getLatitude()) : null);
+						r.setLongitude(response.getLongitude() != null ? Double.toString(response.getLongitude()) : null);
+						r.store();
+					}
+				}
+				catch (Exception e)
+				{
+					goOn = false;
+				}
+			}
 		}
 		catch (SQLException e)
 		{
