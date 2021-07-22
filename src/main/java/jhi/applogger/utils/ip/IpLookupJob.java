@@ -79,7 +79,16 @@ public class IpLookupJob implements Runnable
 			Response<IpLookupResponse> response = request.execute();
 
 			if (response.isSuccessful())
+			{
 				return response.body();
+			}
+			else
+			{
+				if (!StringUtils.isEmpty(response.message()))
+					Logger.getLogger("").info(response.message());
+				else if (response.errorBody() != null)
+					Logger.getLogger("").info(response.errorBody().string());
+			}
 		}
 		catch (IOException e)
 		{
