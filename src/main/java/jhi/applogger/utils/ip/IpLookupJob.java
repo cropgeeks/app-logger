@@ -1,5 +1,6 @@
 package jhi.applogger.utils.ip;
 
+import com.google.gson.*;
 import jhi.applogger.database.Database;
 import jhi.applogger.utils.StringUtils;
 import okhttp3.OkHttpClient;
@@ -46,8 +47,11 @@ public class IpLookupJob implements Runnable
 			.writeTimeout(1, TimeUnit.MINUTES)
 			.retryOnConnectionFailure(true)
 			.build();
+
+		Gson gson = new GsonBuilder().disableHtmlEscaping().create();
+
 		Retrofit retrofit = (new Retrofit.Builder()).baseUrl("http://api.ipstack.com/")
-													.addConverterFactory(GsonConverterFactory.create())
+													.addConverterFactory(GsonConverterFactory.create(gson))
 													.client(httpClient)
 													.build();
 
