@@ -6,13 +6,14 @@ import jhi.applogger.utils.*;
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
-import org.jooq.DSLContext;
+import org.jooq.*;
+import org.jooq.impl.DSL;
 import org.jooq.types.UInteger;
 
 import javax.servlet.http.*;
 import javax.ws.rs.*;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.*;
-import javax.xml.bind.*;
 import java.io.*;
 import java.nio.file.Files;
 import java.sql.*;
@@ -34,24 +35,6 @@ public class LoggerResource
 
 	@Context
 	private HttpServletResponse response;
-
-	public static void main(String[] args)
-		throws JAXBException
-	{
-		// Initialise the database
-		Database.init(args[0], args[1], args[2], args[3], args[4]);
-		// Get the application name
-		String application = args[5];
-		// Get the target file
-		File target = new File(args[6]);
-
-		// Get the markers, then serialize them into a file.
-		Markers markers = getMarkers(application);
-		JAXBContext jaxbContext = JAXBContext.newInstance(Markers.class);
-		Marshaller marshaller = jaxbContext.createMarshaller();
-		marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
-		marshaller.marshal(markers, target);
-	}
 
 	private String getIp()
 	{
@@ -158,7 +141,7 @@ public class LoggerResource
 		return getMarkers(application);
 	}
 
-	private static Markers getMarkers(String application)
+	public static Markers getMarkers(String application)
 	{
 		try (Connection conn = Database.getConnection())
 		{
@@ -172,18 +155,18 @@ public class LoggerResource
 				IPS.CITY,
 				IPS.COUNTRY
 			)
-						  .from(IPS.leftJoin(USERS_IPS).on(IPS.ID.eq(USERS_IPS.IPS_ID))
-								   .leftJoin(APPLICATIONS).on(APPLICATIONS.ID.eq(USERS_IPS.APPLICATIONS_ID)))
-						  .where(APPLICATIONS.APP_NAME.eq(application))
-						  // Stream results directly and map them into POJOs
-						  .stream()
-						  .map(i -> new Marker()
-							  .setLat(i.get(IPS.LATITUDE))
-							  .setLng(i.get(IPS.LONGITUDE))
-							  // Join city and country together
-							  .setTitle(StringUtils.join(", ", "n/a", i.get(IPS.CITY), i.get(IPS.COUNTRY)))
-						  )
-						  .collect(Collectors.toList());
+										  .from(IPS.leftJoin(USERS_IPS).on(IPS.ID.eq(USERS_IPS.IPS_ID))
+												   .leftJoin(APPLICATIONS).on(APPLICATIONS.ID.eq(USERS_IPS.APPLICATIONS_ID)))
+										  .where(APPLICATIONS.APP_NAME.eq(application))
+										  // Stream results directly and map them into POJOs
+										  .stream()
+										  .map(i -> new Marker()
+											  .setLat(i.get(IPS.LATITUDE))
+											  .setLng(i.get(IPS.LONGITUDE))
+											  // Join city and country together
+											  .setTitle(StringUtils.join(", ", "n/a", i.get(IPS.CITY), i.get(IPS.COUNTRY)))
+										  )
+										  .collect(Collectors.toList());
 
 			Markers result = new Markers();
 			result.setMarkers(markers);
@@ -198,16 +181,16 @@ public class LoggerResource
 		return null;
 	}
 
-	private void addEntries(DSLContext context, ApplicationsRecord app, File file)
+	public static void addEntries(DSLContext context, ApplicationsRecord app, File file)
 		throws IOException
 	{
 		// Create some mappings to reduce number of database queries
-		Map<String, UsersRecord> users = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-		context.selectFrom(USERS).forEach(u -> users.put(u.getApplicationId() + "|" + u.getUserid(), u));
-		Map<String, IpsRecord> ips = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-		context.selectFrom(IPS).forEach(i -> ips.put(i.getIpAddress(), i));
-		Map<String, UsersIpsRecord> userIps = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-		context.selectFrom(USERS_IPS).forEach(u -> userIps.put(u.getUsersId() + "|" + u.getApplicationsId() + "|" + u.getIpsId(), u));
+		Map<String, Integer> users = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+		context.selectFrom(USERS).where(USERS.APPLICATION_ID.eq(app.getId())).forEach(u -> users.put(u.getUserid(), u.getId()));
+		Map<String, Integer> ips = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+		context.selectFrom(IPS).forEach(i -> ips.put(i.getIpAddress(), i.getId()));
+		Map<String, Integer> userIps = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+		context.selectFrom(USERS_IPS).where(USERS_IPS.APPLICATIONS_ID.eq(app.getId())).forEach(u -> userIps.put(u.getUsersId() + "|" + u.getIpsId(), u.getId()));
 
 		// Parse the date timestamp
 		SimpleDateFormat sdf = new SimpleDateFormat("EEE MMM dd kk:mm:ss zzz yyyy");
@@ -253,92 +236,83 @@ public class LoggerResource
 					 return;
 
 				 // Get the IP from the request if none is provided
-				 if (StringUtils.isEmpty(ip))
-					 ip = getIp();
+				 // This does not apply to loading from a file
+//				 if (StringUtils.isEmpty(ip))
+//					 ip = getIp(request);
 
 				 // Skip missing user ids
 				 if (StringUtils.isEmpty(userId))
 					 return;
 
 				 // Get the user record
-				 UsersRecord user = users.get(app.getId() + "|" + userId);
+				 Integer user = users.get(userId);
 
 				 if (user != null)
 				 {
-
 					 // Update the user record
-					 user.setRunCount(user.getRunCount().add(1));
+					 UpdateSetMoreStep<?> step = context.update(USERS)
+														.set(USERS.RUN_COUNT, USERS.RUN_COUNT.add(1));
 					 if (!StringUtils.isEmpty(version))
-						 user.setVersion(version);
+						 step.set(USERS.VERSION, version);
 					 if (!StringUtils.isEmpty(locale))
-						 user.setLocale(locale);
-					 if (!StringUtils.isEmpty(os))
-						 user.setOs(os);
-
+						 step.set(USERS.LOCALE, locale);
+					 if (StringUtils.isEmpty(os))
+						 step.set(USERS.OS, os);
 					 if (rating != null)
-					 {
-						 UInteger uRating = UInteger.valueOf(rating);
-						 // If one exists already, take the maximum
-						 if (user.getRating() != null)
-						 {
-							 int comparison = user.getRating().compareTo(UInteger.valueOf(rating));
+						 step.set(USERS.RATING, DSL.greatest(USERS.RATING, DSL.inline(UInteger.valueOf(rating))));
 
-							 if (comparison < 0)
-								 user.setRating(uRating);
-						 }
-						 else
-						 {
-							 user.setRating(uRating);
-						 }
-
-					 }
-					 user.store();
+					 step.where(USERS.ID.eq(user)).execute();
 				 }
 				 else
 				 {
 					 // Create a new user record
-					 user = context.newRecord(USERS);
-					 user.setApplicationId(app.getId());
-					 user.setUserid(userId);
-					 user.setUserName(userName);
-					 user.setVersion(version);
-					 user.setLocale(locale);
-					 user.setDate(date);
-					 user.setOs(os);
-					 user.setRunCount(UInteger.valueOf(1));
+					 UsersRecord newUser = context.newRecord(USERS);
+					 newUser.setApplicationId(app.getId());
+					 newUser.setUserid(userId);
+					 if (!StringUtils.isEmpty(userName))
+					 	newUser.setUserName(userName);
+					 newUser.setVersion(version);
+					 newUser.setLocale(locale);
+					 newUser.setDate(date);
+					 newUser.setOs(os);
+					 newUser.setRunCount(UInteger.valueOf(1));
 					 if (rating != null)
-						 user.setRating(UInteger.valueOf(rating));
-					 user.store();
+						 newUser.setRating(UInteger.valueOf(rating));
+					 newUser.store();
 
-					 users.put(app.getId() + "|" + userId, user);
+					 users.put(userId, newUser.getId());
+
+					 user = newUser.getId();
 				 }
 
 				 // Get the ip record
-				 IpsRecord ipRecord = ips.get(ip);
+				 Integer ipRecord = ips.get(ip);
 
 				 if (ipRecord == null)
 				 {
 					 // Create a new ip record
-					 ipRecord = context.newRecord(IPS);
-					 ipRecord.setIpAddress(ip);
-					 ipRecord.store();
+					 IpsRecord newIpRecord = context.newRecord(IPS);
+					 newIpRecord.setIpAddress(ip);
+					 newIpRecord.store();
 
-					 ips.put(ip, ipRecord);
+					 ips.put(ip, newIpRecord.getId());
+
+					 ipRecord = newIpRecord.getId();
 				 }
 
 				 // Look up the unique mapping between user, application and ip
-				 UsersIpsRecord userIp = userIps.get(user.getId() + "|" + app.getId() + "|" + ipRecord.getId());
+				 Integer userIp = userIps.get(user + "|" + ipRecord);
 
 				 if (userIp == null)
 				 {
 					 // Create it if it doesn't exist
-					 userIp = context.newRecord(USERS_IPS);
-					 userIp.setUsersId(user.getId());
-					 userIp.setIpsId(ipRecord.getId());
-					 userIp.setApplicationsId(app.getId());
-					 userIp.store();
+					 UsersIpsRecord newUserIp = context.newRecord(USERS_IPS);
+					 newUserIp.setUsersId(user);
+					 newUserIp.setIpsId(ipRecord);
+					 newUserIp.setApplicationsId(app.getId());
+					 newUserIp.store();
 
-					 userIps.put(user.getId() + "|" + app.getId() + "|" + ipRecord.getId(), userIp);
+					 userIps.put(user + "|" + ipRecord, newUserIp.getId());
 				 }
 			 });
 	}

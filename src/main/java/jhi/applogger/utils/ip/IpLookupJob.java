@@ -83,6 +83,7 @@ public class IpLookupJob implements Runnable
 		}
 		catch (IOException e)
 		{
+			Logger.getLogger("").severe(e.getLocalizedMessage());
 			e.printStackTrace();
 		}
 
