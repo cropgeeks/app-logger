@@ -369,7 +369,11 @@ public class LoggerResource
 		if (user != null)
 		{
 			// Update the user record
-			user.setRunCount(user.getRunCount().add(1));
+
+			// We can't increment the run count here, because we'd increment this every time this log file is loaded, meaning that
+			// we might be counting the same run multiple times. This obviously will lose genuinely new run counts, but there's no way
+			// to differentiate between them.
+			// user.setRunCount(user.getRunCount().add(1));
 			if (!StringUtils.isEmpty(version))
 				user.setVersion(version);
 			if (!StringUtils.isEmpty(locale))
