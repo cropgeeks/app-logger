@@ -250,18 +250,23 @@ public class LoggerResource
 				 if (user != null)
 				 {
 					 // Update the user record
-					 UpdateSetMoreStep<?> step = context.update(USERS)
-														.set(USERS.RUN_COUNT, USERS.RUN_COUNT.add(1));
-					 if (!StringUtils.isEmpty(version))
-						 step.set(USERS.VERSION, version);
-					 if (!StringUtils.isEmpty(locale))
-						 step.set(USERS.LOCALE, locale);
-					 if (StringUtils.isEmpty(os))
-						 step.set(USERS.OS, os);
-					 if (rating != null)
-						 step.set(USERS.RATING, DSL.greatest(USERS.RATING, DSL.inline(UInteger.valueOf(rating))));
+					 UpdateSetFirstStep<UsersRecord> step = context.update(USERS);
+					 UpdateSetMoreStep<?> setStep = null;
 
-					 step.where(USERS.ID.eq(user)).execute();
+					 // Check if there's anything to update
+					 if (!StringUtils.isEmpty(version))
+						 setStep = step.set(USERS.VERSION, version);
+					 if (!StringUtils.isEmpty(locale))
+						 setStep = (setStep != null ? setStep : step).set(USERS.LOCALE, locale);
+					 if (StringUtils.isEmpty(os))
+						 setStep = (setStep != null ? setStep : step).set(USERS.OS, os);
+					 if (rating != null)
+						 setStep = (setStep != null ? setStep : step).set(USERS.RATING, DSL.greatest(USERS.RATING, DSL.inline(UInteger.valueOf(rating))));
+
+					 // If anything has been changed, run the update query
+					 if (setStep != null)
+					 	setStep.where(USERS.ID.eq(user))
+							   .execute();
 				 }
 				 else
 				 {
@@ -270,7 +275,7 @@ public class LoggerResource
 					 newUser.setApplicationId(app.getId());
 					 newUser.setUserid(userId);
 					 if (!StringUtils.isEmpty(userName))
-					 	newUser.setUserName(userName);
+						 newUser.setUserName(userName);
 					 newUser.setVersion(version);
 					 newUser.setLocale(locale);
 					 newUser.setDate(date);
@@ -369,7 +374,7 @@ public class LoggerResource
 		if (user != null)
 		{
 			// Update the user record
-			 user.setRunCount(user.getRunCount().add(1));
+			user.setRunCount(user.getRunCount().add(1));
 			if (!StringUtils.isEmpty(version))
 				user.setVersion(version);
 			if (!StringUtils.isEmpty(locale))
