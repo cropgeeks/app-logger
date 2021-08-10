@@ -110,13 +110,14 @@ public class LoggerResource
 						  @QueryParam("locale") String locale,
 						  @QueryParam("os") String os,
 						  @QueryParam("user") String userName,
-						  @QueryParam("rating") Integer rating)
+						  @QueryParam("rating") Integer rating,
+						  @QueryParam("runCount") Integer runCount)
 		throws IOException
 	{
 		try (Connection conn = Database.getConnection())
 		{
 			DSLContext context = Database.getContext(conn);
-			addEntry(context, application, userId, ip, userName, version, locale, os, rating, new Timestamp(System.currentTimeMillis()));
+			addEntry(context, application, userId, ip, userName, version, locale, os, rating, runCount, new Timestamp(System.currentTimeMillis()));
 		}
 		catch (SQLException e)
 		{
@@ -322,12 +323,15 @@ public class LoggerResource
 			 });
 	}
 
-	private void addEntry(DSLContext context, String application, String userId, String ip, String userName, String version, String locale, String os, Integer rating, Timestamp date)
+	private void addEntry(DSLContext context, String application, String userId, String ip, String userName, String version, String locale, String os, Integer rating, Integer runCount, Timestamp date)
 		throws IOException
 	{
 		// Ignore X.XX.XX.XX and X.XX.XX versions
 		if (Objects.equals(version, "X.XX.XX.XX") || Objects.equals(version, "X.XX.XX"))
 			return;
+
+		if (runCount == null)
+			runCount = 1;
 
 		// Get the IP from the request if none is provided
 		if (StringUtils.isEmpty(ip))
@@ -351,18 +355,21 @@ public class LoggerResource
 		{
 			try (BufferedWriter bw = new BufferedWriter(new FileWriter(logFile, true)))
 			{
-				// Format the date timestamp
-				SimpleDateFormat sdf = new SimpleDateFormat("EEE MMM dd kk:mm:ss zzz yyyy");
+				for (int i = 0; i < runCount; i++)
+				{
+					// Format the date timestamp
+					SimpleDateFormat sdf = new SimpleDateFormat("EEE MMM dd kk:mm:ss zzz yyyy");
 
-				bw.write(sdf.format(date) + "\t"
-					+ StringUtils.toNonNull(ip) + "\t"
-					+ StringUtils.toNonNull(userId) + "\t"
-					+ StringUtils.toNonNull(version) + "\t"
-					+ StringUtils.toNonNull(locale) + "\t"
-					+ StringUtils.toNonNull(rating) + "\t"
-					+ StringUtils.toNonNull(os) + "\t"
-					+ StringUtils.toNonNull(userName));
-				bw.newLine();
+					bw.write(sdf.format(date) + "\t"
+						+ StringUtils.toNonNull(ip) + "\t"
+						+ StringUtils.toNonNull(userId) + "\t"
+						+ StringUtils.toNonNull(version) + "\t"
+						+ StringUtils.toNonNull(locale) + "\t"
+						+ StringUtils.toNonNull(rating) + "\t"
+						+ StringUtils.toNonNull(os) + "\t"
+						+ StringUtils.toNonNull(userName));
+					bw.newLine();
+				}
 			}
 		}
 
@@ -374,7 +381,7 @@ public class LoggerResource
 		if (user != null)
 		{
 			// Update the user record
-			user.setRunCount(user.getRunCount().add(1));
+			user.setRunCount(user.getRunCount().add(runCount));
 			if (!StringUtils.isEmpty(version))
 				user.setVersion(version);
 			if (!StringUtils.isEmpty(locale))
