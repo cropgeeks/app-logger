@@ -26,7 +26,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Users implements Serializable {
 
-    private static final long serialVersionUID = -1053847215;
+    private static final long serialVersionUID = 347323639;
 
     private Integer   id;
     private Integer   applicationId;

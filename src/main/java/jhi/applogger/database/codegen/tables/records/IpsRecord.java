@@ -29,7 +29,7 @@ import org.jooq.impl.UpdatableRecordImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class IpsRecord extends UpdatableRecordImpl<IpsRecord> implements Record10<Integer, String, String, String, String, String, String, String, String, String> {
 
-    private static final long serialVersionUID = 1598621122;
+    private static final long serialVersionUID = -1189590488;
 
     /**
      * Setter for <code>apptracker_db.ips.id</code>.

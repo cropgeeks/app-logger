@@ -23,7 +23,7 @@ import javax.annotation.Generated;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Applications implements Serializable {
 
-    private static final long serialVersionUID = 1268267832;
+    private static final long serialVersionUID = -1175841454;
 
     private Integer id;
     private String  appName;

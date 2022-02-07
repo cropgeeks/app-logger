@@ -26,7 +26,7 @@ public class IpLookupJob implements Runnable
 		throws InterruptedException
 	{
 		Database.init(args[0], args[1], args[2], args[3], args[4]);
-		ipLookupId = args[5];
+//		ipLookupId = args[5];
 
 		// Run the job and wait for it to finish
 		Thread t = new Thread(new IpLookupJob());
@@ -34,10 +34,10 @@ public class IpLookupJob implements Runnable
 		t.join();
 	}
 
-	public static void init(String id)
-	{
-		ipLookupId = id;
-	}
+//	public static void init(String id)
+//	{
+//		ipLookupId = id;
+//	}
 
 	public IpLookupJob()
 	{
@@ -51,7 +51,7 @@ public class IpLookupJob implements Runnable
 
 		Gson gson = new GsonBuilder().disableHtmlEscaping().create();
 
-		Retrofit retrofit = (new Retrofit.Builder()).baseUrl("http://api.ipstack.com/")
+		Retrofit retrofit = (new Retrofit.Builder()).baseUrl("http://ip-api.com/")
 													.addConverterFactory(GsonConverterFactory.create(gson))
 													.client(httpClient)
 													.build();
@@ -76,12 +76,12 @@ public class IpLookupJob implements Runnable
 		}
 	}
 
-	private IpLookupResponse getIpDetails(String ip)
+	private IpApiLookupResponse getIpDetails(String ip)
 	{
 		try
 		{
-			Call<IpLookupResponse> request = service.getIpDetails(ip, ipLookupId);
-			Response<IpLookupResponse> response = request.execute();
+			Call<IpApiLookupResponse> request = service.getIpDetails(ip);
+			Response<IpApiLookupResponse> response = request.execute();
 
 			if (response.code() == 104)
 			{
@@ -135,16 +135,16 @@ public class IpLookupJob implements Runnable
 				IpsRecord r = result.fetchNext();
 				try
 				{
-					IpLookupResponse response = getIpDetails(r.getIpAddress());
+					IpApiLookupResponse response = getIpDetails(r.getIpAddress());
 
 					if (response != null)
 					{
-						r.setCountry(response.getCountry_name());
-						r.setCountryCode(response.getCountry_code());
+						r.setCountry(response.getCountry());
+						r.setCountryCode(response.getCountryCode());
 						r.setCity(response.getCity());
-						r.setState(response.getRegion_name());
-						r.setLatitude(response.getLatitude() != null ? Double.toString(response.getLatitude()) : null);
-						r.setLongitude(response.getLongitude() != null ? Double.toString(response.getLongitude()) : null);
+						r.setState(response.getRegionName());
+						r.setLatitude(response.getLat() != null ? Double.toString(response.getLat()) : null);
+						r.setLongitude(response.getLon() != null ? Double.toString(response.getLon()) : null);
 						r.store();
 					}
 				}

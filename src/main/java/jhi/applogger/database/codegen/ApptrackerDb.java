@@ -24,7 +24,7 @@ import org.jooq.impl.SchemaImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class ApptrackerDb extends SchemaImpl {
 
-    private static final long serialVersionUID = -1462501144;
+    private static final long serialVersionUID = -1600751102;
 
     /**
      * The reference instance of <code>apptracker_db</code>

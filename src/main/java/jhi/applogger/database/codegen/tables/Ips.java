@@ -38,7 +38,7 @@ import org.jooq.impl.TableImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Ips extends TableImpl<IpsRecord> {
 
-    private static final long serialVersionUID = 1468915984;
+    private static final long serialVersionUID = 1886684086;
 
     /**
      * The reference instance of <code>apptracker_db.ips</code>

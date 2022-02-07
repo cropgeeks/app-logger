@@ -40,7 +40,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Users extends TableImpl<UsersRecord> {
 
-    private static final long serialVersionUID = 245729037;
+    private static final long serialVersionUID = -1747119665;
 
     /**
      * The reference instance of <code>apptracker_db.users</code>

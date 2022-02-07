@@ -29,7 +29,7 @@ import org.jooq.impl.UpdatableRecordImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class ApplicationsRecord extends UpdatableRecordImpl<ApplicationsRecord> implements Record2<Integer, String> {
 
-    private static final long serialVersionUID = 45621958;
+    private static final long serialVersionUID = -1193092308;
 
     /**
      * Setter for <code>apptracker_db.applications.id</code>.

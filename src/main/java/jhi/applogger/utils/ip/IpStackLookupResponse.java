@@ -1,6 +1,6 @@
 package jhi.applogger.utils.ip;
 
-public class IpLookupResponse
+public class IpStackLookupResponse
 {
 	private String city;
 	private String country_code;
@@ -13,7 +13,7 @@ public class IpLookupResponse
 	private String region_name;
 	private String zip_code;
 
-	public IpLookupResponse()
+	public IpStackLookupResponse()
 	{
 	}
 

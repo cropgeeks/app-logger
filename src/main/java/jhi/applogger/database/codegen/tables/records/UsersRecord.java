@@ -32,7 +32,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class UsersRecord extends UpdatableRecordImpl<UsersRecord> implements Record10<Integer, Integer, String, String, String, String, Timestamp, String, UInteger, UInteger> {
 
-    private static final long serialVersionUID = -1229135706;
+    private static final long serialVersionUID = -470415660;
 
     /**
      * Setter for <code>apptracker_db.users.id</code>.

@@ -23,7 +23,7 @@ import javax.annotation.Generated;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Ips implements Serializable {
 
-    private static final long serialVersionUID = 1861422201;
+    private static final long serialVersionUID = 1368763539;
 
     private Integer id;
     private String  ipAddress;
