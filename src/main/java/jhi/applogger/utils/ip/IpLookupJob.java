@@ -135,7 +135,7 @@ public class IpLookupJob implements Runnable
 				IpsRecord r = result.fetchNext();
 				try
 				{
-					Thread.sleep(100);
+					Thread.sleep(2000);
 					IpApiLookupResponse response = getIpDetails(r.getIpAddress());
 
 					if (response != null)
