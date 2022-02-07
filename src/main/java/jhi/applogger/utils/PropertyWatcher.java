@@ -114,7 +114,7 @@ public class PropertyWatcher
 		if (checkAndInit)
 		{
 			Database.init(get("database.server"), get("database.name"), get("database.port"), get("database.username"), get("database.password"));
-			IpLookupJob.init(get("ip.lookup.key"));
+//			IpLookupJob.init(get("ip.lookup.key"));
 		}
 	}
 
