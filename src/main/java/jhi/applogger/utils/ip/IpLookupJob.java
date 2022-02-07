@@ -114,11 +114,11 @@ public class IpLookupJob implements Runnable
 	{
 		Logger.getLogger("").info("RUNNING IP LOOKUP THREAD");
 
-		if (StringUtils.isEmpty(ipLookupId))
-		{
-			Logger.getLogger("").warning("IP LOOKUP ID NOT SET");
-			return;
-		}
+//		if (StringUtils.isEmpty(ipLookupId))
+//		{
+//			Logger.getLogger("").warning("IP LOOKUP ID NOT SET");
+//			return;
+//		}
 
 		try (Connection conn = Database.getConnection())
 		{
